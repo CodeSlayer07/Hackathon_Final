@@ -1,0 +1,1392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Evently — Discover What's Happening Near You</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+:root {
+  --bg: #07070f;
+  --s1: #0e0e1c;
+  --s2: #151528;
+  --s3: #1d1d35;
+  --accent: #7c6aff;
+  --accent-dim: rgba(124,106,255,0.15);
+  --accent-glow: rgba(124,106,255,0.4);
+  --pink: #ff5fa0;
+  --teal: #00e5c3;
+  --orange: #ff8c42;
+  --text: #f0effe;
+  --muted: #7a789a;
+  --border: rgba(255,255,255,0.07);
+  --card-bg: rgba(21,21,40,0.7);
+  --r: 14px;
+  --rsm: 8px;
+}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:'Plus Jakarta Sans',sans-serif;
+  font-size:15px;
+  min-height:100vh;
+  overflow-x:hidden;
+}
+
+/* ── BG MESH ── */
+.bg-mesh{
+  position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:
+    radial-gradient(ellipse 80% 60% at 10% 5%, rgba(124,106,255,0.12) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 50% at 90% 20%, rgba(255,95,160,0.08) 0%, transparent 50%),
+    radial-gradient(ellipse 60% 40% at 50% 90%, rgba(0,229,195,0.06) 0%, transparent 50%);
+}
+
+/* ── NAVBAR ── */
+nav{
+  position:fixed;top:0;left:0;right:0;z-index:300;
+  height:68px;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 40px;
+  background:rgba(7,7,15,0.85);
+  backdrop-filter:blur(20px);
+  border-bottom:1px solid var(--border);
+}
+.logo{
+  font-family:'Syne',sans-serif;font-weight:800;font-size:1.45rem;
+  letter-spacing:-0.03em;color:var(--text);
+  display:flex;align-items:center;gap:8px;cursor:pointer;
+}
+.logo-dot{
+  width:10px;height:10px;border-radius:50%;
+  background:var(--accent);
+  box-shadow:0 0 12px var(--accent-glow);
+}
+.nav-search{
+  flex:1;max-width:380px;margin:0 40px;
+  position:relative;
+}
+.nav-search input{
+  width:100%;padding:10px 16px 10px 42px;
+  background:var(--s2);border:1px solid var(--border);
+  border-radius:100px;color:var(--text);font-family:inherit;font-size:0.875rem;
+  outline:none;transition:border 0.2s,box-shadow 0.2s;
+}
+.nav-search input::placeholder{color:var(--muted);}
+.nav-search input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-dim);}
+.nav-search-icon{
+  position:absolute;left:14px;top:50%;transform:translateY(-50%);
+  color:var(--muted);font-size:0.9rem;pointer-events:none;
+}
+/* ── NAV AUTH BUTTONS ── */
+.nav-auth{display:flex;align-items:center;gap:10px;}
+.btn{
+  padding:9px 20px;border-radius:100px;font-family:inherit;
+  font-size:0.875rem;font-weight:600;cursor:pointer;
+  border:none;transition:all 0.2s;display:inline-flex;align-items:center;gap:7px;
+}
+.btn-ghost{
+  background:transparent;color:var(--muted);
+  border:1px solid var(--border);
+}
+.btn-ghost:hover{color:var(--text);border-color:rgba(255,255,255,0.2);}
+.btn-primary{
+  background:var(--accent);color:#fff;
+  box-shadow:0 0 20px var(--accent-glow);
+}
+.btn-primary:hover{background:#8f7fff;box-shadow:0 0 28px var(--accent-glow);}
+.btn-add{
+  background:var(--teal);color:#07070f;font-weight:700;
+  box-shadow:0 0 16px rgba(0,229,195,0.35);
+  display:none;
+}
+.btn-add:hover{background:#00ffda;box-shadow:0 0 24px rgba(0,229,195,0.5);}
+.user-pill{
+  display:none;align-items:center;gap:10px;
+  background:var(--s2);border:1px solid var(--border);
+  border-radius:100px;padding:6px 16px 6px 8px;cursor:pointer;
+  transition:border 0.2s;
+}
+.user-pill:hover{border-color:var(--accent);}
+.user-avatar{
+  width:32px;height:32px;border-radius:50%;
+  background:linear-gradient(135deg,var(--accent),var(--pink));
+  display:flex;align-items:center;justify-content:center;
+  font-weight:700;font-size:0.8rem;color:#fff;
+  flex-shrink:0;
+}
+.user-name{font-size:0.85rem;font-weight:600;color:var(--text);}
+
+/* ── HERO ── */
+.hero{
+  padding:130px 40px 60px;
+  position:relative;z-index:1;
+  max-width:1200px;margin:0 auto;
+}
+.hero-eyebrow{
+  display:inline-flex;align-items:center;gap:8px;
+  background:var(--accent-dim);border:1px solid rgba(124,106,255,0.3);
+  color:var(--accent);font-size:0.8rem;font-weight:600;
+  padding:6px 14px;border-radius:100px;margin-bottom:24px;
+  letter-spacing:0.05em;text-transform:uppercase;
+}
+.hero h1{
+  font-family:'Syne',sans-serif;font-weight:800;
+  font-size:clamp(2.4rem,5vw,4rem);line-height:1.08;
+  letter-spacing:-0.04em;margin-bottom:20px;
+}
+.hero h1 em{
+  font-style:normal;
+  background:linear-gradient(90deg,var(--accent),var(--pink));
+ -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent;
+}
+.hero p{
+  font-size:1.05rem;color:var(--muted);max-width:520px;
+  line-height:1.7;margin-bottom:36px;
+}
+.hero-cta{display:flex;gap:12px;flex-wrap:wrap;}
+.btn-lg{padding:14px 30px;font-size:1rem;border-radius:100px;}
+.btn-near{
+  background:var(--s2);color:var(--teal);
+  border:1px solid rgba(0,229,195,0.3);
+  box-shadow:0 0 16px rgba(0,229,195,0.08);
+}
+.btn-near:hover{background:rgba(0,229,195,0.1);border-color:var(--teal);}
+
+/* ── SECTION ── */
+.section{
+  position:relative;z-index:1;
+  max-width:1200px;margin:0 auto;
+  padding:0 40px 60px;
+}
+.section-header{
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:24px;
+}
+.section-title{
+  font-family:'Syne',sans-serif;font-weight:700;
+  font-size:1.35rem;letter-spacing:-0.02em;
+}
+.section-link{
+  font-size:0.85rem;color:var(--accent);font-weight:600;
+  text-decoration:none;cursor:pointer;
+  display:flex;align-items:center;gap:4px;
+}
+.section-link:hover{text-decoration:underline;}
+
+/* ── CATEGORY TILES ── */
+.categories-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(150px,1fr));
+  gap:14px;
+}
+.cat-tile{
+  background:var(--card-bg);
+  border:1px solid var(--border);
+  border-radius:var(--r);
+  padding:24px 18px 20px;
+  cursor:pointer;
+  transition:all 0.25s;
+  position:relative;overflow:hidden;
+  backdrop-filter:blur(10px);
+}
+.cat-tile::before{
+  content:'';position:absolute;inset:0;
+  background:var(--tile-color,var(--accent));
+  opacity:0;transition:opacity 0.25s;
+}
+.cat-tile:hover{border-color:var(--tile-color,var(--accent));transform:translateY(-3px);}
+.cat-tile:hover::before{opacity:0.07;}
+.cat-tile.active{
+  border-color:var(--tile-color,var(--accent));
+  box-shadow:0 0 0 1px var(--tile-color,var(--accent)),
+             0 8px 30px rgba(0,0,0,0.3);
+}
+.cat-tile.active::before{opacity:0.12;}
+.cat-icon{font-size:1.8rem;margin-bottom:12px;display:block;position:relative;z-index:1;}
+.cat-name{
+  font-weight:600;font-size:0.9rem;
+  color:var(--text);display:block;position:relative;z-index:1;
+}
+.cat-count{
+  font-size:0.78rem;color:var(--muted);
+  margin-top:4px;display:block;position:relative;z-index:1;
+}
+
+/* ── MAP ── */
+#map-container{
+  display:none;
+  border-radius:var(--r);
+  overflow:hidden;
+  border:1px solid var(--border);
+  height:380px;
+  margin-bottom:28px;
+  position:relative;
+}
+#map{height:100%;width:100%;}
+.map-header{
+  position:absolute;top:14px;left:14px;z-index:500;
+  background:rgba(14,14,28,0.92);
+  backdrop-filter:blur(12px);
+  border:1px solid var(--border);
+  border-radius:var(--rsm);
+  padding:8px 16px;
+  display:flex;align-items:center;gap:8px;
+}
+.map-header-dot{
+  width:8px;height:8px;border-radius:50%;
+  background:var(--teal);box-shadow:0 0 8px var(--teal);
+  animation:pulse 1.5s ease-in-out infinite;
+}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.4;}}
+.map-label{font-size:0.8rem;font-weight:600;color:var(--text);}
+.map-back{
+  position:absolute;top:14px;right:14px;z-index:500;
+  background:rgba(14,14,28,0.92);backdrop-filter:blur(12px);
+  border:1px solid var(--border);border-radius:var(--rsm);
+  padding:8px 14px;color:var(--muted);font-size:0.8rem;font-weight:600;
+  cursor:pointer;transition:color 0.2s;display:flex;align-items:center;gap:6px;
+}
+.map-back:hover{color:var(--text);}
+
+/* ── EVENTS GRID ── */
+.events-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(300px,1fr));
+  gap:20px;
+}
+.event-card{
+  background:var(--card-bg);
+  border:1px solid var(--border);
+  border-radius:var(--r);
+  overflow:hidden;
+  cursor:pointer;
+  transition:all 0.25s;
+  backdrop-filter:blur(10px);
+  position:relative;
+}
+.event-card:hover{
+  border-color:rgba(124,106,255,0.4);
+  transform:translateY(-4px);
+  box-shadow:0 16px 40px rgba(0,0,0,0.4);
+}
+.event-card.selected{
+  border-color:var(--teal);
+  box-shadow:0 0 0 1px var(--teal),0 12px 36px rgba(0,0,0,0.4);
+}
+.event-img{
+  width:100%;height:180px;object-fit:cover;
+  background:var(--s3);
+  display:flex;align-items:center;justify-content:center;
+  font-size:3rem;
+  position:relative;overflow:hidden;
+}
+.event-img-gradient{
+  position:absolute;bottom:0;left:0;right:0;height:60px;
+  background:linear-gradient(transparent,rgba(14,14,28,0.8));
+}
+.event-cat-badge{
+  position:absolute;top:12px;left:12px;
+  font-size:0.7rem;font-weight:700;
+  padding:4px 10px;border-radius:100px;
+  background:rgba(14,14,28,0.85);backdrop-filter:blur(8px);
+  border:1px solid var(--border);color:var(--text);
+  text-transform:uppercase;letter-spacing:0.04em;
+}
+.event-body{padding:18px;}
+.event-title{
+  font-family:'Syne',sans-serif;font-weight:700;
+  font-size:1.05rem;letter-spacing:-0.01em;
+  margin-bottom:8px;line-height:1.3;
+}
+.event-meta{
+  display:flex;flex-direction:column;gap:5px;
+  margin-bottom:16px;
+}
+.event-meta-row{
+  display:flex;align-items:center;gap:7px;
+  font-size:0.82rem;color:var(--muted);
+}
+.event-meta-icon{font-size:0.85rem;flex-shrink:0;}
+.event-footer{
+  display:flex;align-items:center;justify-content:space-between;
+  padding-top:14px;border-top:1px solid var(--border);
+}
+.event-price{
+  font-family:'Syne',sans-serif;font-weight:700;
+  font-size:1.1rem;color:var(--text);
+}
+.event-price span{font-size:0.75rem;color:var(--muted);font-weight:400;font-family:'Plus Jakarta Sans',sans-serif;}
+.btn-book{
+  padding:8px 18px;font-size:0.82rem;
+  background:var(--accent);color:#fff;border-radius:100px;
+  font-weight:700;cursor:pointer;border:none;
+  transition:all 0.2s;
+}
+.btn-book:hover{background:#8f7fff;box-shadow:0 0 16px var(--accent-glow);}
+
+/* ── EMPTY STATE ── */
+.empty-state{
+  text-align:center;padding:60px 20px;
+  color:var(--muted);
+}
+.empty-state-icon{font-size:3.5rem;margin-bottom:16px;}
+.empty-state h3{
+  font-family:'Syne',sans-serif;font-size:1.2rem;
+  color:var(--text);margin-bottom:8px;
+}
+
+/* ── MODALS ── */
+.modal-overlay{
+  position:fixed;inset:0;z-index:500;
+  background:rgba(4,4,12,0.85);backdrop-filter:blur(12px);
+  display:flex;align-items:center;justify-content:center;
+  opacity:0;pointer-events:none;transition:opacity 0.25s;
+  padding:20px;
+}
+.modal-overlay.open{opacity:1;pointer-events:all;}
+.modal{
+  background:var(--s1);border:1px solid var(--border);
+  border-radius:20px;width:100%;max-width:460px;
+  transform:translateY(20px) scale(0.97);transition:transform 0.25s;
+  overflow:hidden;
+  box-shadow:0 24px 80px rgba(0,0,0,0.6);
+}
+.modal-overlay.open .modal{transform:translateY(0) scale(1);}
+.modal-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:24px 28px 0;
+  margin-bottom:24px;
+}
+.modal-title{
+  font-family:'Syne',sans-serif;font-weight:800;
+  font-size:1.4rem;letter-spacing:-0.02em;
+}
+.modal-close{
+  width:32px;height:32px;border-radius:50%;
+  background:var(--s3);border:none;color:var(--muted);
+  font-size:1.1rem;cursor:pointer;transition:all 0.2s;
+  display:flex;align-items:center;justify-content:center;
+}
+.modal-close:hover{background:var(--s2);color:var(--text);}
+.modal-body{padding:0 28px 28px;}
+.modal-tabs{
+  display:flex;gap:0;
+  background:var(--s2);border-radius:var(--rsm);padding:4px;
+  margin-bottom:24px;
+}
+.modal-tab{
+  flex:1;padding:9px;border:none;background:transparent;
+  color:var(--muted);font-family:inherit;font-size:0.875rem;
+  font-weight:600;cursor:pointer;border-radius:calc(var(--rsm) - 2px);
+  transition:all 0.2s;
+}
+.modal-tab.active{background:var(--s3);color:var(--text);}
+.form-group{margin-bottom:18px;}
+.form-label{
+  display:block;font-size:0.82rem;font-weight:600;
+  color:var(--muted);margin-bottom:8px;letter-spacing:0.03em;
+  text-transform:uppercase;
+}
+.form-input{
+  width:100%;padding:12px 16px;
+  background:var(--s2);border:1px solid var(--border);
+  border-radius:var(--rsm);color:var(--text);
+  font-family:inherit;font-size:0.9rem;
+  outline:none;transition:border 0.2s,box-shadow 0.2s;
+}
+.form-input::placeholder{color:var(--muted);}
+.form-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-dim);}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.divider{
+  display:flex;align-items:center;gap:12px;
+  margin:18px 0;color:var(--muted);font-size:0.8rem;
+}
+.divider::before,.divider::after{
+  content:'';flex:1;height:1px;background:var(--border);
+}
+.social-btns{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px;}
+.btn-social{
+  padding:11px;background:var(--s2);border:1px solid var(--border);
+  border-radius:var(--rsm);color:var(--text);font-family:inherit;
+  font-size:0.85rem;font-weight:600;cursor:pointer;
+  transition:border 0.2s;display:flex;align-items:center;justify-content:center;gap:8px;
+}
+.btn-social:hover{border-color:rgba(255,255,255,0.2);}
+.modal-footer-text{
+  text-align:center;font-size:0.82rem;color:var(--muted);margin-top:16px;
+}
+.modal-footer-text a{color:var(--accent);text-decoration:none;font-weight:600;}
+.modal-footer-text a:hover{text-decoration:underline;}
+
+/* ── ADD EVENT MODAL ── */
+.add-event-modal{max-width:560px;}
+.form-textarea{
+  width:100%;padding:12px 16px;
+  background:var(--s2);border:1px solid var(--border);
+  border-radius:var(--rsm);color:var(--text);
+  font-family:inherit;font-size:0.9rem;
+  outline:none;transition:border 0.2s,box-shadow 0.2s;
+  resize:vertical;min-height:90px;
+}
+.form-textarea::placeholder{color:var(--muted);}
+.form-textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-dim);}
+.form-select{
+  width:100%;padding:12px 16px;
+  background:var(--s2);border:1px solid var(--border);
+  border-radius:var(--rsm);color:var(--text);
+  font-family:inherit;font-size:0.9rem;
+  outline:none;cursor:pointer;
+  -webkit-appearance:none;
+appearance:none;
+background-image:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'><path fill='%237a789a' d='M6 8L1 3h10z'/></svg>");
+background-repeat:no-repeat;
+background-position:right 14px center;
+}
+.form-select option{background:#1d1d35;}
+
+/* ── BOOK MODAL ── */
+.book-modal-event{
+  display:flex;gap:16px;align-items:center;
+  background:var(--s2);border-radius:var(--rsm);
+  padding:16px;margin-bottom:20px;
+  border:1px solid var(--border);
+}
+.book-event-emoji{font-size:2.4rem;}
+.book-event-info h3{font-family:'Syne',sans-serif;font-weight:700;font-size:1rem;margin-bottom:4px;}
+.book-event-info p{font-size:0.82rem;color:var(--muted);}
+.ticket-selector{
+  display:flex;align-items:center;justify-content:space-between;
+  background:var(--s2);border:1px solid var(--border);
+  border-radius:var(--rsm);padding:14px 16px;margin-bottom:20px;
+}
+.ticket-label{font-size:0.9rem;font-weight:600;}
+.ticket-qty{display:flex;align-items:center;gap:14px;}
+.qty-btn{
+  width:32px;height:32px;border-radius:50%;
+  background:var(--s3);border:1px solid var(--border);
+  color:var(--text);font-size:1.1rem;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transition:all 0.2s;
+}
+.qty-btn:hover{background:var(--accent);border-color:var(--accent);}
+.qty-num{font-family:'Syne',sans-serif;font-weight:700;font-size:1.1rem;min-width:24px;text-align:center;}
+.price-summary{
+  background:var(--s2);border:1px solid var(--border);
+  border-radius:var(--rsm);padding:16px;margin-bottom:20px;
+}
+.price-row{
+  display:flex;justify-content:space-between;
+  font-size:0.85rem;margin-bottom:8px;color:var(--muted);
+}
+.price-row.total{
+  font-weight:700;font-size:1rem;color:var(--text);
+  margin-top:10px;padding-top:10px;border-top:1px solid var(--border);margin-bottom:0;
+}
+.btn-confirm{
+  width:100%;padding:15px;
+  background:linear-gradient(135deg,var(--accent),var(--pink));
+  color:#fff;border:none;border-radius:var(--rsm);
+  font-family:'Syne',sans-serif;font-weight:700;font-size:1rem;
+  cursor:pointer;letter-spacing:0.01em;
+  transition:all 0.2s;
+  box-shadow:0 8px 24px rgba(124,106,255,0.3);
+}
+.btn-confirm:hover{box-shadow:0 12px 32px rgba(124,106,255,0.45);transform:translateY(-1px);}
+
+/* ── TOAST ── */
+.toast{
+  position:fixed;bottom:32px;left:50%;transform:translateX(-50%) translateY(20px);
+  z-index:900;background:var(--s3);border:1px solid var(--border);
+  border-radius:100px;padding:12px 24px;
+  font-size:0.875rem;font-weight:600;
+  display:flex;align-items:center;gap:10px;
+  opacity:0;pointer-events:none;
+  transition:all 0.35s cubic-bezier(0.34,1.56,0.64,1);
+  box-shadow:0 12px 40px rgba(0,0,0,0.4);
+  white-space:nowrap;
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+.toast-icon{font-size:1.1rem;}
+
+/* ── NEAR ME SECTION ── */
+#nearme-section{display:none;}
+#nearme-map-container{
+  border-radius:var(--r);overflow:hidden;
+  border:1px solid var(--border);height:340px;
+  margin-bottom:28px;position:relative;
+}
+#nearme-map{height:100%;width:100%;}
+
+/* ── FOOTER SPACER ── */
+.footer-space{height:60px;}
+
+/* ── RESPONSIVE ── */
+@media(max-width:768px){
+  nav{padding:0 20px;}
+  .nav-search{display:none;}
+  .hero{padding:100px 20px 40px;}
+  .section{padding:0 20px 40px;}
+  .hero h1{font-size:2rem;}
+  .events-grid{grid-template-columns:1fr;}
+  .categories-grid{grid-template-columns:repeat(3,1fr);}
+  .form-row{grid-template-columns:1fr;}
+}
+
+/* Leaflet dark theme overrides */
+.leaflet-container{background:#0e0e1c;}
+.leaflet-tile{filter:brightness(0.7) saturate(0.8);}
+.leaflet-popup-content-wrapper{
+  background:var(--s2);color:var(--text);
+  border:1px solid var(--border);border-radius:10px;
+  box-shadow:0 8px 24px rgba(0,0,0,0.4);
+}
+.leaflet-popup-tip{background:var(--s2);}
+.leaflet-popup-content{font-family:'Plus Jakarta Sans',sans-serif;font-size:0.85rem;}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="event.js"></script>
+</head>
+<body>
+
+<div class="bg-mesh"></div>
+
+<!-- ══════════════ NAVBAR ══════════════ -->
+<nav>
+  <div class="logo" onclick="showHome()">
+    <div class="logo-dot"></div>
+    Evently
+  </div>
+  <div class="nav-search">
+    <span class="nav-search-icon">🔍</span>
+    <input type="text" id="search-input" placeholder="Search events, venues, artists…" oninput="handleSearch()">
+  </div>
+  <!-- TOP RIGHT: Auth OR User Controls -->
+  <div class="nav-auth" id="nav-auth">
+    <!-- LOGGED OUT STATE -->
+    <div id="auth-logged-out" style="display:flex;gap:10px;">
+      <button class="btn btn-ghost" onclick="openModal('login-modal')">Log in</button>
+      <button class="btn btn-primary" onclick="openModal('login-modal','signup')">Sign up</button>
+    </div>
+    <!-- LOGGED IN STATE -->
+    <div id="auth-logged-in" style="display:none;align-items:center;gap:10px;">
+      <button class="btn btn-add" id="add-event-btn" onclick="openModal('add-event-modal')">
+        ＋ Add Event
+      </button>
+      <div class="user-pill" onclick="logout()">
+        <div class="user-avatar" id="user-avatar">A</div>
+        <span class="user-name" id="user-name-display">User</span>
+        <span style="color:var(--muted);font-size:0.75rem;">▾</span>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<!-- ══════════════ MAIN CONTENT ══════════════ -->
+<div id="home-section">
+  <!-- HERO -->
+  <div class="hero">
+    <div class="hero-eyebrow">✦ Live in your city</div>
+    <h1>Discover <em>incredible</em><br>events near you</h1>
+    <p>From live concerts to food festivals, tech conferences to art shows — find and book the best experiences happening around you.</p>
+    <div class="hero-cta">
+      <button class="btn btn-primary btn-lg" onclick="scrollToCategories()">Explore Events →</button>
+      <button class="btn btn-near btn-lg" onclick="showNearMe()">
+        📍 Near Me
+      </button>
+    </div>
+  </div>
+
+  <!-- CATEGORIES -->
+  <div class="section" id="categories-section">
+    <div class="section-header">
+      <h2 class="section-title">Browse by Category</h2>
+      <span class="section-link" onclick="clearCategory()">Clear filter ×</span>
+    </div>
+    <div class="categories-grid" id="categories-grid"></div>
+  </div>
+
+  <!-- MAP (shown when category selected or event clicked) -->
+  <div class="section" id="map-section" style="display:none;">
+    <div id="map-container">
+      <div id="map"></div>
+      <div class="map-header">
+        <div class="map-header-dot"></div>
+        <span class="map-label" id="map-label">All locations</span>
+      </div>
+      <div class="map-back" onclick="resetMapToCategory()">← All events</div>
+    </div>
+  </div>
+
+  <!-- EVENTS -->
+  <div class="section">
+    <div class="section-header">
+      <h2 class="section-title" id="events-section-title">All Events</h2>
+    </div>
+    <div class="events-grid" id="events-grid"></div>
+  </div>
+</div>
+
+<!-- NEAR ME SECTION -->
+<div id="nearme-section" class="section" style="padding-top:100px;">
+  <div class="section-header">
+    <h2 class="section-title">📍 Events Near You</h2>
+    <span class="section-link" onclick="showHome()">← Back to Home</span>
+  </div>
+  <div id="nearme-map-container">
+    <div id="nearme-map"></div>
+    <div class="map-header">
+      <div class="map-header-dot"></div>
+      <span class="map-label">Showing events near your location</span>
+    </div>
+  </div>
+  <div class="events-grid" id="nearme-events-grid"></div>
+</div>
+
+<div class="footer-space"></div>
+
+<!-- ══════════════ LOGIN / SIGNUP MODAL ══════════════ -->
+<div class="modal-overlay" id="login-modal" onclick="closeModalOutside(event,'login-modal')">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <div style="font-size:0.78rem;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px;">Welcome</div>
+        <div class="modal-title" id="auth-modal-title">Log in to Evently</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('login-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-tabs">
+        <button class="modal-tab active" id="tab-login" onclick="switchTab('login')">Log In</button>
+        <button class="modal-tab" id="tab-signup" onclick="switchTab('signup')">Sign Up</button>
+      </div>
+
+      <!-- Social -->
+      <div class="social-btns">
+        <button class="btn-social" onclick="socialLogin('Google')">
+          <svg width="16" height="16" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+          Google
+        </button>
+        <button class="btn-social" onclick="socialLogin('GitHub')">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+          GitHub
+        </button>
+      </div>
+      <div class="divider">or continue with email</div>
+
+      <!-- Login Form -->
+      <div id="form-login">
+        <div class="form-group">
+          <label class="form-label">Email</label>
+          <input type="email" class="form-input" placeholder="you@example.com" id="login-email">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Password</label>
+          <input type="password" class="form-input" placeholder="••••••••" id="login-password">
+        </div>
+        <button class="btn btn-primary" style="width:100%;padding:13px;font-size:0.95rem;border-radius:10px;justify-content:center;" onclick="handleLogin()">
+          Log In →
+        </button>
+        <div class="modal-footer-text">Don't have an account? <a onclick="switchTab('signup')">Sign up free</a></div>
+      </div>
+
+      <!-- Signup Form -->
+      <div id="form-signup" style="display:none;">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">First Name</label>
+            <input type="text" class="form-input" placeholder="Aditya" id="signup-fname">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Last Name</label>
+            <input type="text" class="form-input" placeholder="Vinayak" id="signup-lname">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Email</label>
+          <input type="email" class="form-input" placeholder="you@example.com" id="signup-email">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Password</label>
+          <input type="password" class="form-input" placeholder="Min. 8 characters" id="signup-password">
+        </div>
+        <button class="btn btn-primary" style="width:100%;padding:13px;font-size:0.95rem;border-radius:10px;justify-content:center;" onclick="handleSignup()">
+          Create Account →
+        </button>
+        <div class="modal-footer-text">Already have an account? <a onclick="switchTab('login')">Log in</a></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ ADD EVENT MODAL ══════════════ -->
+<div class="modal-overlay" id="add-event-modal" onclick="closeModalOutside(event,'add-event-modal')">
+  <div class="modal add-event-modal">
+    <div class="modal-header">
+      <div>
+        <div style="font-size:0.78rem;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px;">Create New</div>
+        <div class="modal-title">Add an Event</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('add-event-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Event Title</label>
+        <input type="text" class="form-input" placeholder="e.g. Neon Nights Music Festival" id="new-event-title">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Category</label>
+          <select class="form-select form-input" id="new-event-category">
+            <option value="">Select category</option>
+            <option value="Music">🎵 Music</option>
+            <option value="Entertainment">🎭 Entertainment</option>
+            <option value="Sports">⚽ Sports</option>
+            <option value="Food">🍜 Food & Drink</option>
+            <option value="Tech">💻 Tech</option>
+            <option value="Art">🎨 Art</option>
+            <option value="Comedy">😂 Comedy</option>
+            <option value="Wellness">🧘 Wellness</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Ticket Price (₹)</label>
+          <input type="number" class="form-input" placeholder="0 for free" id="new-event-price" min="0">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Date</label>
+          <input type="date" class="form-input" id="new-event-date">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Time</label>
+          <input type="time" class="form-input" id="new-event-time">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Venue / Location</label>
+        <input type="text" class="form-input" placeholder="e.g. Indira Gandhi Arena, New Delhi" id="new-event-venue">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Latitude</label>
+          <input type="number" class="form-input" placeholder="28.6139" id="new-event-lat" step="any">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Longitude</label>
+          <input type="number" class="form-input" placeholder="77.2090" id="new-event-lng" step="any">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Description</label>
+        <textarea class="form-textarea" placeholder="Tell people what to expect…" id="new-event-desc"></textarea>
+      </div>
+      <button class="btn-confirm" onclick="handleAddEvent()">Publish Event ✦</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ BOOK TICKETS MODAL ══════════════ -->
+<div class="modal-overlay" id="book-modal" onclick="closeModalOutside(event,'book-modal')">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <div style="font-size:0.78rem;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px;">Reserve Your Spot</div>
+        <div class="modal-title">Book Tickets</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('book-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="book-modal-event">
+        <div class="book-event-emoji" id="book-event-emoji">🎵</div>
+        <div class="book-event-info">
+          <h3 id="book-event-title">Event Title</h3>
+          <p id="book-event-date">Date & Venue</p>
+        </div>
+      </div>
+      <div class="ticket-selector">
+        <div>
+          <div class="ticket-label">Standard Ticket</div>
+          <div style="font-size:0.8rem;color:var(--muted);margin-top:3px;" id="book-price-per">₹500 per ticket</div>
+        </div>
+        <div class="ticket-qty">
+          <button class="qty-btn" onclick="changeQty(-1)">−</button>
+          <span class="qty-num" id="qty-display">1</span>
+          <button class="qty-btn" onclick="changeQty(1)">+</button>
+        </div>
+      </div>
+      <div class="price-summary">
+        <div class="price-row"><span>Subtotal</span><span id="book-subtotal">₹500</span></div>
+        <div class="price-row"><span>Platform fee</span><span id="book-fee">₹25</span></div>
+        <div class="price-row total"><span>Total</span><span id="book-total">₹525</span></div>
+      </div>
+      <button class="btn-confirm" onclick="confirmBooking()">
+        Confirm Booking →
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast">
+  <span class="toast-icon" id="toast-icon">✓</span>
+  <span id="toast-msg">Done!</span>
+</div>
+
+<script>
+// ════════════════════════════════════════════
+// SUPABASE CONFIG — Replace with your project values
+// ════════════════════════════════════════════
+const SUPABASE_URL = 'https://YOUR_PROJECT.supabase.co';
+const SUPABASE_ANON_KEY = 'YOUR_ANON_KEY';
+
+// ════════════════════════════════════════════
+// MOCK DATA (used until Supabase is connected)
+// ════════════════════════════════════════════
+const CATEGORIES = [
+  { id:'Music',         emoji:'🎵', color:'#7c6aff', label:'Music' },
+  { id:'Entertainment', emoji:'🎭', color:'#ff5fa0', label:'Entertainment' },
+  { id:'Sports',        emoji:'⚽', color:'#00e5c3', label:'Sports' },
+  { id:'Food',          emoji:'🍜', color:'#ff8c42', label:'Food & Drink' },
+  { id:'Tech',          emoji:'💻', color:'#4ea8de', label:'Tech' },
+  { id:'Art',           emoji:'🎨', color:'#f0c040', label:'Art' },
+  { id:'Comedy',        emoji:'😂', color:'#b5e853', label:'Comedy' },
+  { id:'Wellness',      emoji:'🧘', color:'#da77f2', label:'Wellness' },
+];
+
+let EVENTS = [
+  { id:1, title:'Neon Nights Music Festival', category:'Music',     emoji:'🎵', date:'2025-03-15', time:'18:00', venue:'JLN Stadium, New Delhi',     lat:28.5854, lng:77.2333, price:1499, desc:'A massive open-air electronic music festival with 20+ artists.',   organizer:'Aditya' },
+  { id:2, title:'Stand-Up Comedy Gala',        category:'Comedy',     emoji:'😂', date:'2025-03-20', time:'20:00', venue:'Hard Rock Café, Mumbai',       lat:19.0596, lng:72.8295, price:799,  desc:'Top comedians from across India — a night of pure laughter.',       organizer:'Aditya' },
+  { id:3, title:'IPL Opening Ceremony',         category:'Sports',     emoji:'⚽', date:'2025-03-22', time:'15:30', venue:'Wankhede Stadium, Mumbai',     lat:18.9388, lng:72.8258, price:2499, desc:'The grand opening of IPL 2025 with live performances.',              organizer:'Aditya' },
+  { id:4, title:'Indie Craft Beer Festival',    category:'Food',       emoji:'🍺', date:'2025-03-28', time:'12:00', venue:'Cubbon Park, Bangalore',       lat:12.9762, lng:77.5929, price:699,  desc:'100+ craft beers, live bands, and street food from across India.',  organizer:'Aditya' },
+  { id:5, title:'AI & Future Tech Summit',      category:'Tech',       emoji:'💻', date:'2025-04-02', time:'09:00', venue:'Pragati Maidan, New Delhi',    lat:28.6183, lng:77.2411, price:3999, desc:'India\'s biggest tech conference — speakers from Google, OpenAI.', organizer:'Aditya' },
+  { id:6, title:'Contemporary Art Exhibition',  category:'Art',        emoji:'🎨', date:'2025-04-05', time:'10:00', venue:'NGMA, Mumbai',                 lat:19.0237, lng:72.8367, price:299,  desc:'Featuring 50 emerging artists from the Indian subcontinent.',       organizer:'Aditya' },
+  { id:7, title:'Bollywood Night',              category:'Entertainment', emoji:'🎭', date:'2025-04-08', time:'19:30', venue:'Jawaharlal Nehru Stadium',   lat:28.5681, lng:77.2379, price:1299, desc:'Dance, drama, and live Bollywood performances.',                   organizer:'Aditya' },
+  { id:8, title:'Morning Yoga & Wellness Fest', category:'Wellness',   emoji:'🧘', date:'2025-04-10', time:'06:00', venue:'Lodhi Garden, New Delhi',      lat:28.5931, lng:77.2215, price:0,    desc:'A sunrise wellness experience — yoga, meditation, and nutrition.', organizer:'Aditya' },
+  { id:9, title:'Rock the Stage 2025',          category:'Music',      emoji:'🎸', date:'2025-04-12', time:'17:00', venue:'Palace Grounds, Bangalore',    lat:13.0046, lng:77.5666, price:1899, desc:'Biggest rock concert of the year with 10 legendary bands.',         organizer:'Aditya' },
+  { id:10, title:'Food & Spice Trail',          category:'Food',       emoji:'🍛', date:'2025-04-15', time:'11:00', venue:'India Gate Lawns, New Delhi',  lat:28.6129, lng:77.2295, price:499,  desc:'A culinary journey across 29 Indian states in one venue.',          organizer:'Aditya' },
+];
+
+// ════════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════════
+let currentUser = null;
+let selectedCategory = null;
+let selectedEvent = null;
+let bookingEvent = null;
+let ticketQty = 1;
+let mapInstance = null;
+let nearMeMapInstance = null;
+let mapMarkers = [];
+
+// ════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════
+window.addEventListener('DOMContentLoaded', () => {
+  renderCategories();
+  renderEvents(EVENTS);
+  // Check if user was previously "logged in" (demo state)
+  const saved = sessionStorage.getItem('evently_user');
+  if (saved) {
+    currentUser = JSON.parse(saved);
+    setLoggedIn(currentUser);
+  }
+});
+
+// ════════════════════════════════════════════
+// CATEGORY RENDERING
+// ════════════════════════════════════════════
+function renderCategories() {
+  const grid = document.getElementById('categories-grid');
+  grid.innerHTML = CATEGORIES.map(cat => {
+    const count = EVENTS.filter(e => e.category === cat.id).length;
+    return `
+      <div class="cat-tile" id="cat-${cat.id}"
+           style="--tile-color:${cat.color}"
+           onclick="selectCategory('${cat.id}')">
+        <span class="cat-icon">${cat.emoji}</span>
+        <span class="cat-name">${cat.label}</span>
+        <span class="cat-count">${count} event${count!==1?'s':''}</span>
+      </div>`;
+  }).join('');
+}
+
+// ════════════════════════════════════════════
+// EVENT RENDERING
+// ════════════════════════════════════════════
+function renderEvents(events) {
+  const grid = document.getElementById('events-grid');
+  if (!events.length) {
+    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1">
+      <div class="empty-state-icon">🔍</div>
+      <h3>No events found</h3>
+      <p style="color:var(--muted);margin-top:8px;">Try a different category or search term</p>
+    </div>`;
+    return;
+  }
+  grid.innerHTML = events.map(ev => {
+    const price = ev.price === 0 ? 'Free' : `₹${ev.price.toLocaleString()}`;
+    const date = new Date(ev.date).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'});
+    return `
+      <div class="event-card" id="ecard-${ev.id}" onclick="selectEvent(${ev.id})">
+        <div class="event-img" style="background:linear-gradient(135deg,${getCatColor(ev.category)}22,${getCatColor(ev.category)}11);">
+          ${ev.emoji}
+          <div class="event-img-gradient"></div>
+          <span class="event-cat-badge">${ev.category}</span>
+        </div>
+        <div class="event-body">
+          <div class="event-title">${ev.title}</div>
+          <div class="event-meta">
+            <div class="event-meta-row"><span class="event-meta-icon">📅</span>${date} · ${ev.time}</div>
+            <div class="event-meta-row"><span class="event-meta-icon">📍</span>${ev.venue}</div>
+          </div>
+          <div class="event-footer">
+            <div class="event-price">${price}<br><span>per ticket</span></div>
+            <button class="btn-book" onclick="event.stopPropagation();openBooking(${ev.id})">Book Now</button>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function getCatColor(catId) {
+  return CATEGORIES.find(c=>c.id===catId)?.color || '#7c6aff';
+}
+
+// ════════════════════════════════════════════
+// CATEGORY SELECTION → shows map with all pins
+// ════════════════════════════════════════════
+function selectCategory(catId) {
+  selectedCategory = catId;
+  selectedEvent = null;
+
+  // Highlight tile
+  document.querySelectorAll('.cat-tile').forEach(t => t.classList.remove('active'));
+  document.getElementById(`cat-${catId}`)?.classList.add('active');
+
+  const filtered = EVENTS.filter(e => e.category === catId);
+  const cat = CATEGORIES.find(c => c.id === catId);
+
+  document.getElementById('events-section-title').textContent = `${cat.emoji} ${cat.label} Events (${filtered.length})`;
+  renderEvents(filtered);
+
+  // Show map section
+  document.getElementById('map-section').style.display = 'block';
+  document.getElementById('map-label').textContent = `${cat.label} — ${filtered.length} locations`;
+  document.querySelector('.map-back').style.display = 'none';
+
+  // Init or reset map
+  setTimeout(() => {
+    initCategoryMap(filtered, getCatColor(catId));
+  }, 100);
+  scrollToCategories();
+}
+
+function initCategoryMap(events, color) {
+  const container = document.getElementById('map-container');
+  container.style.display = 'block';
+
+  if (mapInstance) { mapInstance.remove(); mapInstance = null; }
+  mapMarkers = [];
+
+  mapInstance = L.map('map', { zoomControl: true, attributionControl: false });
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(mapInstance);
+
+  if (!events.length) return;
+
+  const bounds = [];
+  events.forEach(ev => {
+    const marker = L.circleMarker([ev.lat, ev.lng], {
+      radius: 10, fillColor: color, color: '#fff',
+      weight: 2, opacity: 1, fillOpacity: 0.9
+    }).addTo(mapInstance);
+    marker.bindPopup(`<strong>${ev.title}</strong><br>📍 ${ev.venue}<br>📅 ${ev.date}`);
+    marker.on('click', () => selectEvent(ev.id));
+    mapMarkers.push({ id: ev.id, marker });
+    bounds.push([ev.lat, ev.lng]);
+  });
+
+  mapInstance.fitBounds(bounds, { padding: [40, 40] });
+}
+
+// ════════════════════════════════════════════
+// SPECIFIC EVENT CLICK → zooms map to that pin
+// ════════════════════════════════════════════
+function selectEvent(evId) {
+  const ev = EVENTS.find(e => e.id === evId);
+  if (!ev) return;
+
+  // Highlight card
+  document.querySelectorAll('.event-card').forEach(c => c.classList.remove('selected'));
+  document.getElementById(`ecard-${evId}`)?.classList.add('selected');
+
+  selectedEvent = ev;
+
+  if (!mapInstance) return;
+
+  // Update map label and show back button
+  document.getElementById('map-label').textContent = `📍 ${ev.venue}`;
+  document.querySelector('.map-back').style.display = 'flex';
+
+  // Dim all markers, highlight selected
+  mapMarkers.forEach(m => {
+    const isSelected = m.id === evId;
+    m.marker.setStyle({
+      radius: isSelected ? 14 : 7,
+      fillOpacity: isSelected ? 1 : 0.25,
+      opacity: isSelected ? 1 : 0.3,
+    });
+    if (isSelected) {
+      m.marker.openPopup();
+    } else {
+      m.marker.closePopup();
+    }
+  });
+
+  // Fly to event location
+  mapInstance.flyTo([ev.lat, ev.lng], 14, { duration: 1.2 });
+}
+
+function resetMapToCategory() {
+  if (!selectedCategory) return;
+  const filtered = EVENTS.filter(e => e.category === selectedCategory);
+  const color = getCatColor(selectedCategory);
+  const cat = CATEGORIES.find(c => c.id === selectedCategory);
+
+  document.getElementById('map-label').textContent = `${cat?.label} — ${filtered.length} locations`;
+  document.querySelector('.map-back').style.display = 'none';
+  document.querySelectorAll('.event-card').forEach(c => c.classList.remove('selected'));
+
+  mapMarkers.forEach(m => {
+    m.marker.setStyle({ radius: 10, fillOpacity: 0.9, opacity: 1 });
+    m.marker.closePopup();
+  });
+
+  if (filtered.length) {
+    const bounds = filtered.map(e => [e.lat, e.lng]);
+    mapInstance.fitBounds(bounds, { padding: [40, 40] });
+  }
+}
+
+function clearCategory() {
+  selectedCategory = null;
+  selectedEvent = null;
+  document.querySelectorAll('.cat-tile').forEach(t => t.classList.remove('active'));
+  document.getElementById('events-section-title').textContent = 'All Events';
+  renderEvents(EVENTS);
+  document.getElementById('map-section').style.display = 'none';
+  if (mapInstance) { mapInstance.remove(); mapInstance = null; }
+  document.getElementById('map-container').style.display = 'none';
+}
+
+// ════════════════════════════════════════════
+// NEAR ME
+// ════════════════════════════════════════════
+function showNearMe() {
+  document.getElementById('home-section').style.display = 'none';
+  document.getElementById('nearme-section').style.display = 'block';
+
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(pos => {
+      const { latitude: lat, longitude: lng } = pos.coords;
+      renderNearMeMap(lat, lng);
+    }, () => {
+      // Fallback: use New Delhi
+      renderNearMeMap(28.6139, 77.2090);
+      showToast('📍 Using default location (New Delhi)', '⚠️');
+    });
+  } else {
+    renderNearMeMap(28.6139, 77.2090);
+  }
+}
+
+function renderNearMeMap(userLat, userLng) {
+  if (nearMeMapInstance) { nearMeMapInstance.remove(); nearMeMapInstance = null; }
+
+  nearMeMapInstance = L.map('nearme-map', { zoomControl: true, attributionControl: false });
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(nearMeMapInstance);
+
+  // User location marker
+  L.circleMarker([userLat, userLng], {
+    radius: 12, fillColor: '#00e5c3', color: '#fff',
+    weight: 3, opacity: 1, fillOpacity: 1
+  }).bindPopup('<strong>📍 You are here</strong>').addTo(nearMeMapInstance);
+
+  // Sort events by distance
+  const withDist = EVENTS.map(ev => ({
+    ...ev,
+    distance: haversine(userLat, userLng, ev.lat, ev.lng)
+  })).sort((a, b) => a.distance - b.distance);
+
+  withDist.forEach(ev => {
+    L.circleMarker([ev.lat, ev.lng], {
+      radius: 9, fillColor: getCatColor(ev.category), color: '#fff',
+      weight: 2, opacity: 1, fillOpacity: 0.9
+    }).bindPopup(`<strong>${ev.title}</strong><br>📍 ${ev.venue}<br>🛣️ ${ev.distance.toFixed(0)} km away`)
+      .addTo(nearMeMapInstance);
+  });
+
+  nearMeMapInstance.setView([userLat, userLng], 6);
+
+  // Render near-me events list
+  const grid = document.getElementById('nearme-events-grid');
+  grid.innerHTML = withDist.map(ev => {
+    const price = ev.price === 0 ? 'Free' : `₹${ev.price.toLocaleString()}`;
+    const date = new Date(ev.date).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'});
+    return `
+      <div class="event-card">
+        <div class="event-img" style="background:linear-gradient(135deg,${getCatColor(ev.category)}22,${getCatColor(ev.category)}11);">
+          ${ev.emoji}
+          <div class="event-img-gradient"></div>
+          <span class="event-cat-badge">${ev.category}</span>
+        </div>
+        <div class="event-body">
+          <div class="event-title">${ev.title}</div>
+          <div class="event-meta">
+            <div class="event-meta-row"><span class="event-meta-icon">📅</span>${date} · ${ev.time}</div>
+            <div class="event-meta-row"><span class="event-meta-icon">📍</span>${ev.venue}</div>
+            <div class="event-meta-row"><span class="event-meta-icon">🛣️</span>${ev.distance.toFixed(0)} km away</div>
+          </div>
+          <div class="event-footer">
+            <div class="event-price">${price}<br><span>per ticket</span></div>
+            <button class="btn-book" onclick="openBooking(${ev.id})">Book Now</button>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function haversine(lat1, lng1, lat2, lng2) {
+  const R = 6371;
+  const dLat = (lat2-lat1)*Math.PI/180;
+  const dLng = (lng2-lng1)*Math.PI/180;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+function showHome() {
+  document.getElementById('home-section').style.display = 'block';
+  document.getElementById('nearme-section').style.display = 'none';
+}
+
+// ════════════════════════════════════════════
+// SEARCH
+// ════════════════════════════════════════════
+function handleSearch() {
+  const q = document.getElementById('search-input').value.toLowerCase().trim();
+  if (!q) { renderEvents(EVENTS); return; }
+  const filtered = EVENTS.filter(e =>
+    e.title.toLowerCase().includes(q) ||
+    e.category.toLowerCase().includes(q) ||
+    e.venue.toLowerCase().includes(q)
+  );
+  renderEvents(filtered);
+  document.getElementById('events-section-title').textContent = `Search: "${q}" (${filtered.length} results)`;
+}
+
+// ════════════════════════════════════════════
+// AUTH
+// ════════════════════════════════════════════
+function switchTab(tab) {
+  const isLogin = tab === 'login';
+  document.getElementById('tab-login').classList.toggle('active', isLogin);
+  document.getElementById('tab-signup').classList.toggle('active', !isLogin);
+  document.getElementById('form-login').style.display = isLogin ? 'block' : 'none';
+  document.getElementById('form-signup').style.display = isLogin ? 'none' : 'block';
+  document.getElementById('auth-modal-title').textContent = isLogin ? 'Log in to Evently' : 'Join Evently';
+}
+
+function handleLogin() {
+  const email = document.getElementById('login-email').value;
+  const pass = document.getElementById('login-password').value;
+  if (!email || !pass) { showToast('Please fill in all fields','⚠️'); return; }
+
+  // TODO: Replace with Supabase auth
+  // supabase.auth.signInWithPassword({ email, password: pass })
+  const user = { name: email.split('@')[0], email, avatar: email[0].toUpperCase() };
+  setLoggedIn(user);
+  closeModal('login-modal');
+  showToast(`Welcome back, ${user.name}! 👋`,'✅');
+}
+
+function handleSignup() {
+  const fname = document.getElementById('signup-fname').value;
+  const lname = document.getElementById('signup-lname').value;
+  const email = document.getElementById('signup-email').value;
+  const pass = document.getElementById('signup-password').value;
+  if (!fname || !email || !pass) { showToast('Please fill in all fields','⚠️'); return; }
+  if (pass.length < 8) { showToast('Password must be at least 8 characters','⚠️'); return; }
+
+  // TODO: Replace with Supabase auth
+  // supabase.auth.signUp({ email, password: pass, options: { data: { full_name: fname+' '+lname } } })
+  const user = { name: fname, email, avatar: fname[0].toUpperCase() };
+  setLoggedIn(user);
+  closeModal('login-modal');
+  showToast(`Account created! Welcome, ${fname}! 🎉`,'🎉');
+}
+
+function socialLogin(provider) {
+  // TODO: supabase.auth.signInWithOAuth({ provider: provider.toLowerCase() })
+  const user = { name: `${provider} User`, email: `user@${provider.toLowerCase()}.com`, avatar: provider[0] };
+  setLoggedIn(user);
+  closeModal('login-modal');
+  showToast(`Signed in with ${provider}! 👋`,'✅');
+}
+
+function setLoggedIn(user) {
+  currentUser = user;
+  sessionStorage.setItem('evently_user', JSON.stringify(user));
+  document.getElementById('auth-logged-out').style.display = 'none';
+  document.getElementById('auth-logged-in').style.display = 'flex';
+  document.getElementById('add-event-btn').style.display = 'inline-flex';
+  document.getElementById('user-avatar').textContent = user.avatar || user.name[0].toUpperCase();
+  document.getElementById('user-name-display').textContent = user.name;
+}
+
+function logout() {
+  currentUser = null;
+  sessionStorage.removeItem('evently_user');
+  document.getElementById('auth-logged-out').style.display = 'flex';
+  document.getElementById('auth-logged-in').style.display = 'none';
+  showToast('Logged out successfully','👋');
+}
+
+// ════════════════════════════════════════════
+// ADD EVENT
+// ════════════════════════════════════════════
+function handleAddEvent() {
+  if (!currentUser) { showToast('Please log in first','⚠️'); return; }
+  const title    = document.getElementById('new-event-title').value;
+  const category = document.getElementById('new-event-category').value;
+  const price    = parseInt(document.getElementById('new-event-price').value) || 0;
+  const date     = document.getElementById('new-event-date').value;
+  const time     = document.getElementById('new-event-time').value;
+  const venue    = document.getElementById('new-event-venue').value;
+  const lat      = parseFloat(document.getElementById('new-event-lat').value) || 28.6139;
+  const lng      = parseFloat(document.getElementById('new-event-lng').value) || 77.2090;
+  const desc     = document.getElementById('new-event-desc').value;
+
+  if (!title || !category || !date || !venue) {
+    showToast('Please fill in all required fields','⚠️'); return;
+  }
+
+  const cat = CATEGORIES.find(c=>c.id===category);
+  const newEvent = {
+    id: Date.now(), title, category, emoji: cat?.emoji || '🎫',
+    date, time, venue, lat, lng, price, desc,
+    organizer: currentUser.name
+  };
+
+  // TODO: Replace with Supabase insert
+  // await supabase.from('events').insert([newEvent])
+  EVENTS.unshift(newEvent);
+  renderCategories();
+  renderEvents(EVENTS);
+  closeModal('add-event-modal');
+  showToast(`"${title}" published! 🎉`,'🎉');
+
+  // Reset form
+  ['title','price','date','time','venue','lat','lng','desc'].forEach(f=>{
+    const el = document.getElementById(`new-event-${f}`);
+    if(el) el.value='';
+  });
+  document.getElementById('new-event-category').value='';
+}
+
+// ════════════════════════════════════════════
+// BOOKING
+// ════════════════════════════════════════════
+function openBooking(evId) {
+  if (!currentUser) {
+    openModal('login-modal');
+    showToast('Log in to book tickets','ℹ️');
+    return;
+  }
+  const ev = EVENTS.find(e=>e.id===evId);
+  if (!ev) return;
+  bookingEvent = ev;
+  ticketQty = 1;
+
+  document.getElementById('book-event-emoji').textContent = ev.emoji;
+  document.getElementById('book-event-title').textContent = ev.title;
+  document.getElementById('book-event-date').textContent =
+    `${new Date(ev.date).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'})} · ${ev.venue}`;
+
+  const price = ev.price === 0 ? 'Free' : `₹${ev.price.toLocaleString()}`;
+  document.getElementById('book-price-per').textContent = `${price} per ticket`;
+
+  updateBookingTotal();
+  openModal('book-modal');
+}
+
+function changeQty(delta) {
+  ticketQty = Math.max(1, Math.min(10, ticketQty + delta));
+  document.getElementById('qty-display').textContent = ticketQty;
+  updateBookingTotal();
+}
+
+function updateBookingTotal() {
+  if (!bookingEvent) return;
+  const subtotal = bookingEvent.price * ticketQty;
+  const fee = bookingEvent.price === 0 ? 0 : Math.round(subtotal * 0.05);
+  const total = subtotal + fee;
+  document.getElementById('book-subtotal').textContent = bookingEvent.price===0?'Free':`₹${subtotal.toLocaleString()}`;
+  document.getElementById('book-fee').textContent = fee===0?'₹0':`₹${fee.toLocaleString()}`;
+  document.getElementById('book-total').textContent = total===0?'Free':`₹${total.toLocaleString()}`;
+}
+
+function confirmBooking() {
+  // TODO: Replace with Supabase insert into bookings table
+  // await supabase.from('bookings').insert([{ event_id: bookingEvent.id, user_id: currentUser.id, qty: ticketQty }])
+  closeModal('book-modal');
+  showToast(`${ticketQty} ticket${ticketQty>1?'s':''} booked for "${bookingEvent.title}"! 🎟️`,'🎟️');
+}
+
+// ════════════════════════════════════════════
+// MODAL HELPERS
+// ════════════════════════════════════════════
+function openModal(id, tab) {
+  document.getElementById(id).classList.add('open');
+  document.body.style.overflow = 'hidden';
+  if (id === 'login-modal' && tab) switchTab(tab);
+}
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+  document.body.style.overflow = '';
+}
+function closeModalOutside(e, id) {
+  if (e.target.id === id) closeModal(id);
+}
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    ['login-modal','add-event-modal','book-modal'].forEach(closeModal);
+  }
+});
+
+// ════════════════════════════════════════════
+// TOAST
+// ════════════════════════════════════════════
+let toastTimer;
+function showToast(msg, icon='✓') {
+  clearTimeout(toastTimer);
+  const toast = document.getElementById('toast');
+  document.getElementById('toast-msg').textContent = msg;
+  document.getElementById('toast-icon').textContent = icon;
+  toast.classList.add('show');
+  toastTimer = setTimeout(() => toast.classList.remove('show'), 3000);
+}
+
+// ════════════════════════════════════════════
+// SCROLL HELPERS
+// ════════════════════════════════════════════
+function scrollToCategories() {
+  document.getElementById('categories-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+</script>
+</body>
+</html>
